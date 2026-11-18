@@ -5,16 +5,8 @@ export const SELLER_ID_ATTR = 'data-id_seller';
 export const PAGINATION_SELECTOR = `.num[${PAGINATION_ATTR}]`;
 export const SELLER_ID_SELECTOR = `[${SELLER_ID_ATTR}]`;
 
-// Detail page selectors
-export const IMAGES_SELECTOR = '.productimg:not(.loaded)';
-export const IMPORTANT_INFO_SELECTOR = '.seller_unit-important_message .text';
-export const STYLED_DESCRIPTION_SELECTOR = '.product_unit-description';
-export const CATEGORIES_SELECTOR = '.product_unit-personal_cat a';
-export const FLER_CATEGORIES_SELECTOR = '.product_unit-fler_sections a';
-export const KEYWORDS_SELECTOR = '.product_unit-keywords a';
-export const ATTRIBUTE_SECTION_SELECTOR = '.product_unit-attributes .section';
-export const ATTRIBUTE_NAME_SELECTOR = '.section-label';
-export const ATTRIBUTE_VALUES_SELECTOR = '.list-wrap ul li a';
+// Detail page: product data JSON embedded for the Svelte frontend
+export const PRODUCT_DATA_SELECTOR = 'script#product-data-fixture';
 
 export const RESULTS_PER_PAGE = 36;
 

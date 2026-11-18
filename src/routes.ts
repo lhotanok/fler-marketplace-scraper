@@ -1,9 +1,6 @@
 import { Actor } from 'apify';
 import {
-    Cheerio,
-    CheerioRoot,
     createCheerioRouter,
-    Element,
     log,
     RequestProvider,
 } from 'crawlee';
@@ -11,28 +8,18 @@ import { decode } from 'html-entities';
 
 import {
     API_REQUEST_HEADERS,
-    ATTRIBUTE_NAME_SELECTOR,
-    ATTRIBUTE_SECTION_SELECTOR,
-    ATTRIBUTE_VALUES_SELECTOR,
-    CATEGORIES_SELECTOR,
-    DOMAIN,
     DUMMY_PAYLOAD_PARAM,
-    FLER_CATEGORIES_SELECTOR,
-    IMAGES_SELECTOR,
-    IMPORTANT_INFO_SELECTOR,
-    KEYWORDS_SELECTOR,
     LABELS,
     PAGINATION_ATTR,
     PAGINATION_SELECTOR,
+    PRODUCT_DATA_SELECTOR,
     RESULTS_PER_PAGE,
     SELLER_ID_ATTR,
     SELLER_ID_SELECTOR,
-    STYLED_DESCRIPTION_SELECTOR
 } from './constants.js';
+import { parseProductDetails } from './detail.js';
 
 import {
-    Attribute,
-    Category,
     PagesState,
     ProductInfo,
     ProductSimpleInfo,
@@ -100,17 +87,15 @@ router.addHandler(LABELS.API_LIST, async ({ json, crawler, request: { userData: 
 router.addHandler(LABELS.DETAIL, async ({ $, request: { url, userData: { simpleInfo } } }) => {
     log.info(`Extracting product info`, { url });
 
-    const attributes = parseAttributes($);
+    const fixtureJson = $(PRODUCT_DATA_SELECTOR).text();
+    if (!fixtureJson) {
+        // Throwing lets the crawler retry. A page without the blob is usually a block or error page.
+        throw new Error(`Product data not found on ${url}`);
+    }
 
     const productInfo : ProductInfo = {
         ...simpleInfo,
-        images: parseImages($),
-        importantInfo: $(IMPORTANT_INFO_SELECTOR).text().trim(),
-        styledDescription: parseStyledDescription($),
-        categories: parseCategories($, $(CATEGORIES_SELECTOR)),
-        flerCategories: parseCategories($, $(FLER_CATEGORIES_SELECTOR)),
-        keywords: parseCategories($, $(KEYWORDS_SELECTOR)),
-        attributes,
+        ...parseProductDetails(fixtureJson),
     };
 
     await Actor.pushData(productInfo);
@@ -192,43 +177,4 @@ const buildProductInfo = (response: ResponseProductSimpleInfo) : ProductSimpleIn
         priceEur: parseNumber(priceEur),
         flagcorners,
     };
-};
-
-const parseImages = ($: CheerioRoot) : string[] => {
-    return Array.from(
-        new Set(
-            $(IMAGES_SELECTOR).map((_i, el) => $(el).attr('data-src')).toArray()
-        )
-    );
-};
-
-const parseStyledDescription = ($: CheerioRoot) : string => {
-    const html = $(STYLED_DESCRIPTION_SELECTOR).html();
-
-    return html
-        ? decode(html.trim())
-            .replace(/[\r\n]/g, '')
-            .replace(/\u00a0/gi, ' ')
-            .replace(/<a href="\//gi, `<a href="${DOMAIN}/`)
-        : '';
-};
-
-const parseCategories = ($: CheerioRoot, categoryElements: Cheerio<Element>) : Category[] => {
-    return categoryElements.map((_i, el) => ({
-        name: $(el).text().trim(),
-        url: buildUrl($(el).attr('href') || '')
-    })).toArray();
-};
-
-const parseAttributes = ($: CheerioRoot) : Attribute[] => {
-    const attributeSections = $(ATTRIBUTE_SECTION_SELECTOR);
-
-    const attributes : Attribute[] = attributeSections.map((_i, el) => {
-        const name = $(el).find(ATTRIBUTE_NAME_SELECTOR).text().trim();
-        const values = parseCategories($, $(el).find(ATTRIBUTE_VALUES_SELECTOR));
-
-        return { name, values };
-    }).toArray();
-
-    return attributes;
 };

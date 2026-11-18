@@ -1,7 +1,12 @@
-import { createCheerioRouter } from 'crawlee';
-import { Cheerio, AnyNode } from 'cheerio';
 import { Actor } from 'apify';
-import { CheerioRoot, log, RequestQueue } from 'crawlee';
+import {
+    Cheerio,
+    CheerioRoot,
+    createCheerioRouter,
+    Element,
+    log,
+    RequestProvider,
+} from 'crawlee';
 import { decode } from 'html-entities';
 
 import {
@@ -58,7 +63,7 @@ router.addDefaultHandler(async ({ $, request: { url }, crawler }) => {
 
     const sellerId = $(SELLER_ID_SELECTOR).attr(SELLER_ID_ATTR) || '';
 
-    const requestQueue = crawler.requestQueue ? crawler.requestQueue : await Actor.openRequestQueue();
+    const requestQueue = await crawler.getRequestQueue();
 
     await enqueueApiListRequests(lastPage, sellerId, requestQueue, state.remainingPages);
 });
@@ -114,7 +119,7 @@ router.addHandler(LABELS.DETAIL, async ({ $, request: { url, userData: { simpleI
 const enqueueApiListRequests = async (
     lastPage: number,
     sellerId: string,
-    requestQueue: RequestQueue,
+    requestQueue: RequestProvider,
     maxItems?: number
 ) => {
     let allowedItemsCount = maxItems || Number.MAX_SAFE_INTEGER;
@@ -208,7 +213,7 @@ const parseStyledDescription = ($: CheerioRoot) : string => {
         : '';
 };
 
-const parseCategories = ($: CheerioRoot, categoryElements: Cheerio<AnyNode>) : Category[] => {
+const parseCategories = ($: CheerioRoot, categoryElements: Cheerio<Element>) : Category[] => {
     return categoryElements.map((_i, el) => ({
         name: $(el).text().trim(),
         url: buildUrl($(el).attr('href') || '')

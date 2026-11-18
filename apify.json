@@ -1,7 +1,0 @@
-{
-	"name": "fler-scraper",
-	"version": "0.0",
-	"buildTag": "latest",
-	"env": null,
-	"template": "crawlee_cheerio_typescript"
-}

@@ -36,8 +36,18 @@ import {
 
 export const router = createCheerioRouter();
 
-router.addDefaultHandler(async ({ $, request: { url }, crawler }) => {
+router.addDefaultHandler(async ({ $, request: { url }, response, crawler }) => {
     log.info(`Extracting total number of pages`, { url });
+
+    const sellerId = $(SELLER_ID_SELECTOR).attr(SELLER_ID_ATTR);
+    if (!sellerId) {
+        if (response.statusCode === 404) {
+            log.error(`Seller not found, skipping it. Check the seller URL.`, { url });
+            return;
+        }
+        // Other pages without a seller ID are usually block or error pages, so retry them.
+        throw new Error(`Seller ID not found on ${url}`);
+    }
 
     const state = await crawler.useState<PagesState>();
 
@@ -47,8 +57,6 @@ router.addDefaultHandler(async ({ $, request: { url }, crawler }) => {
     const lastPage = lastPageText ? Number(lastPageText) : 1;
 
     log.info(`Found ${lastPage} pages with products`);
-
-    const sellerId = $(SELLER_ID_SELECTOR).attr(SELLER_ID_ATTR) || '';
 
     const requestQueue = await crawler.getRequestQueue();
 
@@ -69,6 +77,9 @@ router.addHandler(LABELS.API_LIST, async ({ json, crawler, request: { userData: 
             break;
         }
 
+        // Take the slot before awaiting, or pages handled in parallel can both take the last one.
+        state.remainingPages--;
+
         const sellerInfo = buildSellerInfo(product);
         const productInfo = buildProductInfo(product);
 
@@ -79,8 +90,6 @@ router.addHandler(LABELS.API_LIST, async ({ json, crawler, request: { userData: 
                 label: LABELS.DETAIL,
             },
         });
-
-        state.remainingPages--;
     }
 });
 
@@ -107,7 +116,8 @@ const enqueueApiListRequests = async (
     requestQueue: RequestProvider,
     maxItems?: number
 ) => {
-    let allowedItemsCount = maxItems || Number.MAX_SAFE_INTEGER;
+    // 0 means the limit is used up by other sellers, not unlimited.
+    let allowedItemsCount = maxItems ?? Number.MAX_SAFE_INTEGER;
 
     for (let offset = 0; offset < lastPage * RESULTS_PER_PAGE; offset += RESULTS_PER_PAGE) {
         if (allowedItemsCount <= 0) {
@@ -123,7 +133,8 @@ const enqueueApiListRequests = async (
 
         await requestQueue.addRequest({
             url,
-            uniqueKey: `${url}-${offset}`,
+            // The URL is the same for every seller, so the key needs the seller ID.
+            uniqueKey: `${url}-${sellerId}-${offset}`,
             method: 'post',
             payload,
             headers: API_REQUEST_HEADERS,

@@ -1,7 +1,10 @@
 import { Actor } from 'apify';
 import { CheerioCrawler } from 'crawlee';
 import { router } from './routes.js';
+import { fixTimeoutStoreLeak } from './timeout-leak.js';
 import { InputSchema, PagesState } from './types.js';
+
+fixTimeoutStoreLeak();
 
 await Actor.init();
 
